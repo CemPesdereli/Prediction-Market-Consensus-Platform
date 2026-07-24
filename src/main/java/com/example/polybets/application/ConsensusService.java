@@ -70,13 +70,17 @@ public class ConsensusService {
 
         double totalCohortWeight = weightedTraders.stream().mapToDouble(WeightedTrader::weight).sum();
         int cohortSize = traders.size();
+        List<Double> sortedCohortWeightsDesc = weightedTraders.stream()
+                .map(WeightedTrader::weight)
+                .sorted(Comparator.reverseOrder())
+                .collect(Collectors.toList());
 
         Map<String, List<ActivePosition>> byMarket = positions.stream()
                 .collect(Collectors.groupingBy(ActivePosition::conditionId, LinkedHashMap::new, Collectors.toList()));
 
         return byMarket.values().stream()
                 .filter(list -> distinctWallets(list).size() >= minHolders)
-                .map(list -> toConsensusMarket(list, weightByWallet, userNameByWallet, totalCohortWeight, cohortSize))
+                .map(list -> toConsensusMarket(list, weightByWallet, userNameByWallet, totalCohortWeight, cohortSize, sortedCohortWeightsDesc))
                 .sorted(Comparator.comparingDouble(ConsensusMarket::weightedConsensusPercent).reversed())
                 .collect(Collectors.toList());
     }
@@ -107,7 +111,8 @@ public class ConsensusService {
             Map<String, Double> weightByWallet,
             Map<String, String> userNameByWallet,
             double totalCohortWeight,
-            int cohortSize) {
+            int cohortSize,
+            List<Double> sortedCohortWeightsDesc) {
 
         // Ayni cuzdan ayni markette birden fazla outcome/asset'te pozisyon tutabilir;
         // holder listesi icin cuzdan basina en yuksek currentValue'ya sahip olani aliyoruz.
@@ -150,17 +155,43 @@ public class ConsensusService {
         ActivePosition first = positionsInMarket.get(0);
         double weightedConsensusPercent = totalCohortWeight == 0.0 ? 0.0 : (groupWeight / totalCohortWeight) * 100.0;
 
+        int holderCount = dedupedByWallet.size();
+        double maxPossiblePercent = totalCohortWeight == 0.0
+                ? 0.0
+                : (sumTopK(sortedCohortWeightsDesc, holderCount) / totalCohortWeight) * 100.0;
+        double minPossiblePercent = totalCohortWeight == 0.0
+                ? 0.0
+                : (sumBottomK(sortedCohortWeightsDesc, holderCount) / totalCohortWeight) * 100.0;
+
         return new ConsensusMarket(
                 first.conditionId(),
                 first.marketTitle(),
                 first.marketSlug(),
                 first.eventSlug(),
                 first.endDate(),
-                dedupedByWallet.size(),
+                holderCount,
                 cohortSize,
                 weightedConsensusPercent,
+                minPossiblePercent,
+                maxPossiblePercent,
                 sentimentYesPercent,
                 holders);
+    }
+
+    /**
+     * Sirali (buyukten kucuge) agirlik listesinde en yuksek k agirligin toplami.
+     * "Bu kadar kisi tutsaydi en fazla alabilecegi skor" -- en iyi k trader varsayimi.
+     */
+    private double sumTopK(List<Double> sortedDesc, int k) {
+        return sortedDesc.stream().limit(k).mapToDouble(Double::doubleValue).sum();
+    }
+
+    /**
+     * Sirali (buyukten kucuge) agirlik listesinde en dusuk k agirligin toplami.
+     * "Bu kadar kisi tutsaydi en az alabilecegi skor" -- en kotu k trader varsayimi.
+     */
+    private double sumBottomK(List<Double> sortedDesc, int k) {
+        return sortedDesc.stream().skip(Math.max(0, sortedDesc.size() - k)).mapToDouble(Double::doubleValue).sum();
     }
 
     private double valueOrZero(Double value) {

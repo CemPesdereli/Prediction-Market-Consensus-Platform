@@ -16,6 +16,8 @@ public record ConsensusMarket(
         int holderCount,
         int cohortSize,
         double weightedConsensusPercent,
+        double minPossiblePercent,
+        double maxPossiblePercent,
         Double sentimentYesPercent,
         List<HolderDetail> holders
 ) {

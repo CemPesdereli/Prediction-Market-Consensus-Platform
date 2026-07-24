@@ -1,10 +1,22 @@
-export default function WeightGauge({ weightedPercent, plainPercent }) {
+export default function WeightGauge({ weightedPercent, plainPercent, minPercent, maxPercent }) {
   const w = Math.max(0, Math.min(100, weightedPercent))
   const p = Math.max(0, Math.min(100, plainPercent))
+  const hasRange = minPercent != null && maxPercent != null
+  const min = hasRange ? Math.max(0, Math.min(100, minPercent)) : null
+  const max = hasRange ? Math.max(0, Math.min(100, maxPercent)) : null
 
   return (
     <div className="w-full">
       <div className="relative h-2.5 rounded-full bg-ink-700 overflow-visible">
+        {/* Teorik min-max aralik bandi: bu kadar kisi tutsaydi kim olduklarina
+            gore alabilecegi en dusuk/en yuksek skor bandi */}
+        {hasRange && (
+          <div
+            className="absolute inset-y-0 rounded-full bg-amber-300/20"
+            style={{ left: `${min}%`, width: `${Math.max(0, max - min)}%` }}
+            title={`Teorik aralık: %${min.toFixed(1)} – %${max.toFixed(1)}`}
+          />
+        )}
         <div
           className="h-full rounded-full bg-gradient-to-r from-amber-600 to-amber-400 transition-all duration-500"
           style={{ width: `${w}%` }}

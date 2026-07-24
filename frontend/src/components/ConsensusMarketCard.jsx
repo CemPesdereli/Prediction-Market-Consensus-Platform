@@ -41,8 +41,17 @@ export default function ConsensusMarketCard({ market }) {
       </div>
 
       <div className="mt-4">
-        <WeightGauge weightedPercent={market.weightedConsensusPercent} plainPercent={plainPercent} />
+        <WeightGauge
+          weightedPercent={market.weightedConsensusPercent}
+          plainPercent={plainPercent}
+          minPercent={market.minPossiblePercent}
+          maxPercent={market.maxPossiblePercent}
+        />
       </div>
+
+      <p className="mt-1.5 text-[11px] text-ash-500">
+        %{market.minPossiblePercent.toFixed(1)} – %{market.maxPossiblePercent.toFixed(1)} aralığında
+      </p>
 
       {market.sentimentYesPercent != null && (
         <div className="mt-3 flex items-center gap-2 text-xs">

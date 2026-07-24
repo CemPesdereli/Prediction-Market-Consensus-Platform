@@ -87,6 +87,38 @@ class ConsensusServiceTest {
         assertThat(result.get(0).sentimentYesPercent()).isCloseTo(50.0, within(0.001));
     }
 
+    @Test
+    void minMaxPossiblePercentKismiHolderIcinDogruHesaplanmali() {
+        // A: roi=1.0 (en iyi)  -> weight 3.0
+        // B: roi=0.1           -> weight 1.2
+        // C: roi=0.0 (en kotu) -> weight 1.0
+        // Toplam kohort agirligi = 3.0 + 1.2 + 1.0 = 5.2
+        Trader a = new Trader("0xA", "traderA", 1, 1000, 1000);
+        Trader b = new Trader("0xB", "traderB", 2, 100, 1000);
+        Trader c = new Trader("0xC", "traderC", 3, 0, 1000);
+
+        // Bu markette sadece A ve C pozisyon tutuyor -> holderCount=2, cohortSize=3
+        ActivePosition posA = position("0xA", "market-1", "Yes");
+        ActivePosition posC = position("0xC", "market-1", "No");
+
+        List<ConsensusMarket> result = service.calculate(List.of(a, b, c), List.of(posA, posC), 2);
+
+        assertThat(result).hasSize(1);
+        ConsensusMarket market = result.get(0);
+        assertThat(market.holderCount()).isEqualTo(2);
+        assertThat(market.cohortSize()).isEqualTo(3);
+
+        // k=2 icin en yuksek 2 agirlik (A+B = 3.0+1.2=4.2) -> 4.2/5.2*100
+        assertThat(market.maxPossiblePercent()).isCloseTo(80.7692, within(0.01));
+        // k=2 icin en dusuk 2 agirlik (B+C = 1.2+1.0=2.2) -> 2.2/5.2*100
+        assertThat(market.minPossiblePercent()).isCloseTo(42.3077, within(0.01));
+
+        // Gercek skor (A+C = 3.0+1.0=4.0 -> 4.0/5.2*100) bu araligin icinde olmali
+        assertThat(market.weightedConsensusPercent())
+                .isGreaterThanOrEqualTo(market.minPossiblePercent())
+                .isLessThanOrEqualTo(market.maxPossiblePercent());
+    }
+
     private ActivePosition position(String wallet, String conditionId, String outcome) {
         return new ActivePosition(wallet, conditionId, "Test Market", "test-market", "test-event",
                 outcome, 0.5, 100.0, "2026-12-31");

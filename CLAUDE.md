@@ -119,6 +119,25 @@ sentimentYes% = yesWeight / (yesWeight + noWeight) * 100
 `weightedConsensusPercent` + `sentimentYesPercent` gösterecek şekilde tasarlanacak
 (`CommonBetDto`'ya bu alanlar eklenecek).
 
+**5) Teorik min/max aralığı (yeni karar):** `weightedConsensusPercent` tek bir sayı
+olduğu için "bu marketi kaç kişi tuttuğu" bilgisini ROI ağırlığı bağlamında
+yorumlamayı zorlaştırıyor — aynı `holderCount` çok farklı skorlara denk gelebilir
+(en zayıf ROI'li k kişi mi, en güçlü ROI'li k kişi mi tuttu). Bunu göstermek için
+`ConsensusMarket`'e `minPossiblePercent` / `maxPossiblePercent` eklendi:
+
+```
+k = holderCount (bu marketi tutan farklı cüzdan sayısı)
+kohort ağırlıkları büyükten küçüğe sıralanır
+maxPossiblePercent = sum(en yüksek k ağırlık) / totalCohortWeight * 100
+minPossiblePercent = sum(en düşük k ağırlık)  / totalCohortWeight * 100
+```
+
+Yorum: "k kişi tutsaydı, kim oldukları en iyi/en kötü ihtimalle bu marketin skoru
+şu aralıkta olurdu" — gerçek `weightedConsensusPercent` her zaman bu aralığın
+içinde kalır (matematiksel invariant, `ConsensusServiceTest` içinde de doğrulanıyor).
+Frontend'de `WeightGauge` bar'ının arkasında soluk bir bant, kartta da
+"%min – %max aralığında" metni olarak gösteriliyor.
+
 ## Frontend Kararı (yeni karar — önceki Thymeleaf planından değişti)
 
 Ayrı bir **React SPA** (Vite + Tailwind CSS) yazılacak, backend'in REST API'sini
