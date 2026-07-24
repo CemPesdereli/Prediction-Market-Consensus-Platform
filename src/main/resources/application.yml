@@ -1,0 +1,40 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: polymarket-consensus-platform
+  datasource:
+    url: jdbc:postgresql://localhost:5432/polybets
+    username: polybets
+    password: polybets
+  jpa:
+    hibernate:
+      # Semayi Flyway yonetiyor; Hibernate sadece dogrulama yapiyor, otomatik degistirmiyor
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+logging:
+  level:
+    com.example.polybets: INFO
+
+polymarket:
+  data-api-base-url: https://data-api.polymarket.com
+  top-n: 20
+  default-category: POLITICS
+  time-period: MONTH
+  order-by: PNL
+  min-common-holders: 2
+  positions-limit: 500
+  sync:
+    cron: "0 */30 * * * *"
+    enabled: true
+
+cors:
+  allowed-origins: "http://localhost:5173"

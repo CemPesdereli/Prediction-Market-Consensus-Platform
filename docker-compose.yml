@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: polybets-postgres
+    environment:
+      POSTGRES_DB: polybets
+      POSTGRES_USER: polybets
+      POSTGRES_PASSWORD: polybets
+    ports:
+      - "5432:5432"
+    volumes:
+      - polybets-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U polybets"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  polybets-data:

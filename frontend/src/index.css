@@ -1,0 +1,19 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  @apply bg-ink-900 text-ash-100 font-body antialiased;
+  background-image:
+    radial-gradient(circle at 15% 0%, rgba(245, 166, 35, 0.06), transparent 40%),
+    radial-gradient(circle at 85% 20%, rgba(61, 220, 151, 0.05), transparent 35%);
+  background-attachment: fixed;
+}
+
+::selection {
+  background: rgba(245, 166, 35, 0.35);
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
