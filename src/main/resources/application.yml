@@ -30,8 +30,9 @@ polymarket:
   default-category: POLITICS
   time-period: MONTH
   order-by: PNL
-  min-common-holders: 2
+  min-common-holders: 3
   positions-limit: 500
+  closed-window-days: 3
   sync:
     cron: "0 */30 * * * *"
     enabled: true

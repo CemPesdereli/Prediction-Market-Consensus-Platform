@@ -61,9 +61,14 @@ GET https://data-api.polymarket.com/positions
      curPrice, redeemable, title, slug, eventSlug, outcome, outcomeIndex, endDate }]
 ```
 
+Aynı endpoint `redeemable=true` ile çağrılırsa **sonuçlanmış (kapanmış)** pozisyonları
+döner — `cashPnl`/`percentPnl` bu durumda o bahisten elde edilen gerçek kâr/zararı
+taşıyor (Kapanmış Bahisler Detay Görünümü bölümüne bakınız).
+
 "Ortak bahis" tanımı: aynı `conditionId`'ye sahip olmak yeterli sayılıyor; Yes/No
 farklı taraflarda olmaları da ortaklık sayılır ama `outcome` alanıyla ayrıca gösterilir.
-Eşik: `min-common-holders` (varsayılan 2) farklı cüzdan.
+Eşik: `min-common-holders` (varsayılan **3**, önceden 2'ydi — 2 kişilik "ortaklık"
+gürültülü/anlamsız sinyal üretiyordu, 3'e çıkarıldı) farklı cüzdan.
 
 ## Önceki Sürüm (referans / yeniden kullanılacak kod)
 
@@ -137,6 +142,104 @@ Yorum: "k kişi tutsaydı, kim oldukları en iyi/en kötü ihtimalle bu marketin
 içinde kalır (matematiksel invariant, `ConsensusServiceTest` içinde de doğrulanıyor).
 Frontend'de `WeightGauge` bar'ının arkasında soluk bir bant, kartta da
 "%min – %max aralığında" metni olarak gösteriliyor.
+
+## Kapanmış Bahisler Detay Görünümü (yeni karar)
+
+Ana sayfa (aktif/açık pozisyonları gösteren) sadece "hâlâ açık" ortak marketleri
+gösteriyordu; top-20'nin **sonuçlanmış** ortak bahislerinde kimin haklı çıktığını
+görmek için ayrı bir detay görünümü eklendi.
+
+- Frontend'de aktif bahisler sayfasındaki header'a **"Son 3 günde kapananları
+  göster"** butonu eklendi (`App.jsx`). Butona basılınca sayfa aynı kalıyor,
+  altına `ClosedBetsPanel` bileşeni ekleniyor (ayrı bir route değil).
+- Backend: `GET /api/closed-bets?category=X` → `ClosedConsensusService.getClosedConsensus()`.
+  Trader listesi DB'deki en son senkronize edilmiş leaderboard'dan geliyor
+  (`ConsensusRepositoryPort`), ama **kapanmış pozisyonlar kalıcı olarak
+  saklanmıyor** — `PositionsPort.fetchClosedPositions()` (Polymarket
+  `/positions?redeemable=true`) her istekte canlı çağrılıyor. Gerekçe: bu bir
+  "detay göster" aksiyonu, periyodik sync gibi sürekli ihtiyaç duyulan bir veri
+  değil; yeni bir DB tablosu/migration'a değmiyordu.
+- `polymarket.closed-window-days` (varsayılan **3**) config'i ile pencere
+  ayarlanabiliyor; `endDate` bu pencerenin içinde olan (`now - N gün` ile `now`
+  arası) pozisyonlar dahil ediliyor. Aynı `min-common-holders` (3) eşiği burada
+  da uygulanıyor — "ortak bahis" tanımı aktif/kapanmış arasında tutarlı.
+- `ClosedConsensusMarket` weighted skor **hesaplamıyor** (bu sadece aktif
+  consensus için anlamlı) — bunun yerine her market için holder bazında
+  `outcome` (Yes/No), `percentPnl` (ROI) ve `cashPnl` ($ kâr/zarar) dökümü +
+  markete toplam kâr/zarar (`totalCashPnl`) gösteriyor. Amaç: "top-20'den kim
+  bu markette haklı çıktı, kim yanıldı, ne kazandı/kaybetti" sorusuna cevap.
+
+**ÖNEMLİ bulgu (canlı API'de test edildi, varsayım değil):** `redeemable=true`
+ile `/positions` sorgulamak **tek başına yeterli değil** ve ciddi bir yanlılık
+üretiyor. Bir kazanan pozisyon claim edildiği (redeem) anda `/positions`
+endpoint'inden **hangi `redeemable` değeriyle sorgularsan sorgula tamamen
+kayboluyor** — aynı `conditionId` için `redeemable=true`, `redeemable=false`,
+hatta filtresiz sorgu da boş dönüyor. Gerçek bir top-trader cüzdanıyla
+doğrulandı: `redeemable=true` altında dönen pozisyonların tamamı `currentValue=0`,
+`percentPnl≈-100` olan, hiç claim edilmemiş (değersiz olduğu için kimsenin
+zahmet etmediği) **kaybedilen** bahislerdi. Yani sadece bu endpoint'i kullanmak
+kazananları sistematik olarak dışarıda bırakıp sadece kaybedenleri gösterirdi.
+
+Çözüm: iki kaynak birleştiriliyor (`ClosedConsensusService.getClosedConsensus()`):
+1. `/positions?redeemable=true` → pratikte neredeyse tamamı **kaybedilen**,
+   henüz claim edilmemiş bahisler. `cashPnl`/`percentPnl` burada API'den doğru
+   geliyor.
+2. `/activity?user=&type=REDEEM&start=<epoch>` → pratikte neredeyse tamamı
+   **kazanılan** bahisler (kaybeden pozisyonu claim etmenin bir anlamı yok,
+   değeri $0). Bu, claim edilen pozisyonun zincir üstündeki tek izi; `outcome`
+   ve claim zamanı güvenilir ama `usdcSize` **brüt ödeme**, net kâr değil
+   (maliyet bilgisi yok). Net kârı hesaplamak o markette yapılan tüm alım/satım
+   geçmişini toplamayı gerektirir — on-demand bir "detay göster" görünümü için
+   orantısız maliyetli bulundu, bilinçli olarak yapılmadı.
+
+Bu yüzden `ClosedPosition`'da kazanan holder'lar için `cashPnl`/`percentPnl`
+**bilerek `null`** bırakılıyor (yanlış bir sayı uydurmak yerine); frontend'de
+"—" olarak gösteriliyor, panelde bunun ne anlama geldiğini açıklayan bir not
+var. Kaybedenler için gösterilen rakamlar tam doğru. `PositionsPort`'a bu
+yüzden `fetchClosedPositions` (kaybedenler) ve `fetchRedeemedPositions`
+(kazananlar) olmak üzere iki ayrı metot eklendi.
+
+**İkinci bulgu (gerçek veriyle UI testinde ortaya çıktı):** `ClosedPosition`/
+`HolderOutcome`'da sadece `outcome` (Yes/No/Up/Down/oyuncu adı -- hangi tarafı
+seçtiği) vardı, **kazanıp kazanmadığı** ayrıca gösterilmiyordu -- kullanıcı
+sonucu anlayamadı. Ayrıca top-20 kohortunun "ortak" kapanmış bahisleri pratikte
+neredeyse hep **hepsi kazanmış** kümeler çıkıyor (beklenmedik değil: consensus
+tezinin ta kendisi -- birden fazla başarılı traderın hemfikir olduğu bahisler
+isabetli çıkma eğiliminde), bu da eski `totalCashPnl` alanının çoğu zaman
+"+0$" göstermesine yol açıyordu (bilinmeyen kazanç null→0 sayılınca) ve bu
+"kimse kazanmadı/kaybetmedi" gibi yanlış okunuyordu.
+
+Çözüm: `ClosedPosition`'a ve `HolderOutcome`'a açık bir `boolean won` alanı
+eklendi (kaynağa göre kesin: `fetchClosedPositions`→`false`,
+`fetchRedeemedPositions`→`true`). Market seviyesindeki tek `totalCashPnl`
+alanı **kaldırıldı** -- frontend artık holder listesinden "N kazandı · M
+kaybetti" + "bilinen toplam zarar" (sadece kaybedenlerin gerçek cashPnl'i
+toplanarak) türetiyor. Her holder satırında ayrı bir "Sonuç" (KAZANDI/KAYBETTİ)
+rozeti var, "Seçim" (outcome) nötr/bilgilendirici olarak ayrı gösteriliyor.
+
+**Üçüncü bulgu (asıl kök neden -- kullanıcı üretimde "hepsi kazandı görünüyor"
+diye fark etti, ham veriyle doğrulandı):** Yukarıdaki iki düzeltmeden sonra bile
+**gerçek üretim verisinde tek bir kaybeden bile görünmüyordu** (101 WEATHER
+marketinin 101'i de "hepsi kazandı"). Sebep clustering/consensus tezi değil,
+düz bir **parse bug'ıydı**: `/positions` endpoint'inin `endDate` alanı saat
+içermeyen düz tarih formatında geliyor (`"2026-07-23"`), REDEEM aktivitesinden
+sentezlediğimiz `endDate` ise tam ISO instant (`"2026-07-23T23:47:43Z"`).
+`ClosedConsensusService.isWithinWindow()` sadece `Instant.parse()` kullanıyordu
+-- bu, bare-date formatında `DateTimeParseException` fırlatıyor, kod bunu
+sessizce yutup pozisyonu "pencere dışı" sayıp atıyordu. Sonuç: `/positions?redeemable=true`
+kaynaklı (yani pratikte kaybedenlerin **tamamı**) sessizce eleniyordu, sadece
+REDEEM kaynaklı (kazananlar) pencereden geçiyordu -- consensus kümeleri o
+yüzden hep "hepsi kazandı" çıkıyordu.
+
+Gerçek bir cüzdanla (AndreaPirlo, WEATHER top-20) doğrulandı: "Will the highest
+temperature in London be 27°C on July 23?" marketinde `cashPnl: -23.6017`
+değeriyle gerçek bir kaybı vardı, ham API'de duruyordu, ama `endDate: "2026-07-23"`
+(saatsiz) olduğu için uygulamada hiç görünmüyordu. Düzeltme:
+`ClosedConsensusService.parseEndDate()` önce `Instant.parse()` dener, başarısız
+olursa `LocalDate.parse(endDate).atStartOfDay(ZoneOffset.UTC).toInstant()` ile
+bare-date'i de parse eder. `ClosedConsensusServiceTest`'e bu spesifik regresyonu
+(bare-date `endDate`'li kaybedenlerin pencereden geçmesi gerektiğini) doğrulayan
+bir test eklendi.
 
 ## Frontend Kararı (yeni karar — önceki Thymeleaf planından değişti)
 

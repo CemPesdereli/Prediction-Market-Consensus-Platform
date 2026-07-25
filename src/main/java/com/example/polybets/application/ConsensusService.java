@@ -62,7 +62,7 @@ public class ConsensusService {
             return List.of();
         }
 
-        List<WeightedTrader> weightedTraders = computeWeights(traders);
+        List<WeightedTrader> weightedTraders = WeightedTrader.computeAll(traders);
         Map<String, Double> weightByWallet = weightedTraders.stream()
                 .collect(Collectors.toMap(wt -> wt.trader().proxyWallet(), WeightedTrader::weight));
         Map<String, String> userNameByWallet = traders.stream()
@@ -82,23 +82,6 @@ public class ConsensusService {
                 .filter(list -> distinctWallets(list).size() >= minHolders)
                 .map(list -> toConsensusMarket(list, weightByWallet, userNameByWallet, totalCohortWeight, cohortSize, sortedCohortWeightsDesc))
                 .sorted(Comparator.comparingDouble(ConsensusMarket::weightedConsensusPercent).reversed())
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * Her trader icin [1.0, 3.0] araliginda ROI-normalize agirlik hesaplar.
-     */
-    private List<WeightedTrader> computeWeights(List<Trader> traders) {
-        double minRoi = traders.stream().mapToDouble(Trader::roi).min().orElse(0.0);
-        double maxRoi = traders.stream().mapToDouble(Trader::roi).max().orElse(0.0);
-        double range = maxRoi - minRoi;
-
-        return traders.stream()
-                .map(trader -> {
-                    double normalized = range == 0.0 ? 0.5 : (trader.roi() - minRoi) / range;
-                    double weight = 1.0 + 2.0 * normalized;
-                    return new WeightedTrader(trader, weight);
-                })
                 .collect(Collectors.toList());
     }
 

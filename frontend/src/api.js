@@ -12,6 +12,12 @@ export async function fetchCommonBets(category) {
   return res.json()
 }
 
+export async function fetchClosedBets(category) {
+  const res = await fetch(`${BASE}/closed-bets?category=${category}`)
+  if (!res.ok) throw new Error('Kapanmış bahis verisi alınamadı')
+  return res.json()
+}
+
 export async function triggerSync(category) {
   const res = await fetch(`${BASE}/sync?category=${category}`, { method: 'POST' })
   if (!res.ok) throw new Error('Senkronizasyon tetiklenemedi')

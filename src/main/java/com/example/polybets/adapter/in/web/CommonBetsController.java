@@ -1,8 +1,10 @@
 package com.example.polybets.adapter.in.web;
 
+import com.example.polybets.application.ClosedConsensusService;
 import com.example.polybets.application.ConsensusService;
 import com.example.polybets.application.LeaderboardSyncService;
 import com.example.polybets.domain.model.Category;
+import com.example.polybets.domain.model.ClosedConsensusMarket;
 import com.example.polybets.domain.model.ConsensusMarket;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -14,10 +16,15 @@ import java.util.List;
 public class CommonBetsController {
 
     private final ConsensusService consensusService;
+    private final ClosedConsensusService closedConsensusService;
     private final LeaderboardSyncService syncService;
 
-    public CommonBetsController(ConsensusService consensusService, LeaderboardSyncService syncService) {
+    public CommonBetsController(
+            ConsensusService consensusService,
+            ClosedConsensusService closedConsensusService,
+            LeaderboardSyncService syncService) {
         this.consensusService = consensusService;
+        this.closedConsensusService = closedConsensusService;
         this.syncService = syncService;
     }
 
@@ -30,6 +37,18 @@ public class CommonBetsController {
     public ResponseEntity<List<ConsensusMarket>> getCommonBets(
             @RequestParam(defaultValue = "POLITICS") Category category) {
         return ResponseEntity.ok(consensusService.getConsensus(category));
+    }
+
+    /**
+     * GET /api/closed-bets?category=WEATHER
+     * Top-20 kohortunun son polymarket.closed-window-days gün içinde
+     * kapanmış (redeem edilmiş) ortak marketleri -- kim Yes/No demiş,
+     * ne kadar kâr/zarar etmiş. Canlı (on-demand) hesaplanır, kalıcı değildir.
+     */
+    @GetMapping("/closed-bets")
+    public ResponseEntity<List<ClosedConsensusMarket>> getClosedBets(
+            @RequestParam(defaultValue = "POLITICS") Category category) {
+        return ResponseEntity.ok(closedConsensusService.getClosedConsensus(category));
     }
 
     /**
