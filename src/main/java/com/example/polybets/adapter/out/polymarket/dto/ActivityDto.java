@@ -7,6 +7,11 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
  * tek bir on-chain aktivite kaydı. Kazanılmış (redeem edilmiş) pozisyonları
  * yakalamak için kullanılıyor -- redeem sonrası pozisyon /positions'tan tamamen
  * kayboluyor, tek iz burada kalıyor.
+ *
+ * Aynı DTO, type=TRADE sorgusuyla o markette yapılmış tüm alım/satım (BUY/SELL)
+ * kayıtlarını çekmek için de kullanılıyor (bkz. PolymarketPositionsAdapter) --
+ * kazanan bir pozisyonun gerçek net kârını hesaplamak için gereken price/side alanları
+ * sadece TRADE kayıtlarında dolu gelir, REDEEM kayıtlarında boş/0 gelir.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record ActivityDto(
@@ -16,6 +21,8 @@ public record ActivityDto(
         String type,
         Double size,
         Double usdcSize,
+        Double price,
+        String side,
         String title,
         String slug,
         String eventSlug,

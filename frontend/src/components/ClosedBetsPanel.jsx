@@ -18,10 +18,11 @@ function formatPnl(value, suffix) {
 }
 
 function marketSummary(holders) {
-  const winnerCount = holders.filter((h) => h.won).length
+  const winners = holders.filter((h) => h.won)
   const losers = holders.filter((h) => !h.won)
   const knownLoss = losers.reduce((sum, h) => sum + (h.cashPnl ?? 0), 0)
-  return { winnerCount, loserCount: losers.length, knownLoss }
+  const knownProfit = winners.reduce((sum, h) => sum + (h.cashPnl ?? 0), 0)
+  return { winnerCount: winners.length, loserCount: losers.length, knownLoss, knownProfit }
 }
 
 export default function ClosedBetsPanel({ markets, loading, error, windowDays }) {
@@ -31,9 +32,10 @@ export default function ClosedBetsPanel({ markets, loading, error, windowDays })
         Son {windowDays} günde kapanan ortak bahisler
       </h2>
       <p className="text-xs text-ash-500 mb-3">
-        Kazanan pozisyonlarda net kâr "—" olarak gösterilir (claim edilince zincir
-        üstünde kaybolduğu için bilinmiyor, sadece kazandığı biliniyor); kaybedenlerde
-        gösterilen rakamlar tam doğrudur.
+        Kazananların net kârı, o marketteki tüm alım/satım geçmişi yeniden
+        oluşturularak hesaplanıyor. Bu hesap güvenilir çıkmazsa (ör. çok sayıda
+        işlem geçmişi varsa) "—" gösterilir; kaybedenlerde gösterilen rakamlar
+        her zaman tam doğrudur.
       </p>
 
       {loading && (
@@ -54,7 +56,7 @@ export default function ClosedBetsPanel({ markets, loading, error, windowDays })
 
       <div className="grid gap-4">
         {markets.map((m) => {
-          const { winnerCount, loserCount, knownLoss } = marketSummary(m.holders)
+          const { winnerCount, loserCount, knownLoss, knownProfit } = marketSummary(m.holders)
           return (
             <div
               key={m.conditionId}
@@ -73,6 +75,11 @@ export default function ClosedBetsPanel({ markets, loading, error, windowDays })
                     <span className="text-ash-700"> · </span>
                     <span className="text-signal-no">{loserCount} kaybetti</span>
                   </div>
+                  {winnerCount > 0 && (
+                    <div className="font-mono tabular-nums text-xs text-ash-500 mt-1">
+                      bilinen toplam kâr: {formatPnl(knownProfit, '$')}
+                    </div>
+                  )}
                   {loserCount > 0 && (
                     <div className="font-mono tabular-nums text-xs text-ash-500 mt-1">
                       bilinen toplam zarar: {formatPnl(knownLoss, '$')}

@@ -121,6 +121,6 @@ class ConsensusServiceTest {
 
     private ActivePosition position(String wallet, String conditionId, String outcome) {
         return new ActivePosition(wallet, conditionId, "Test Market", "test-market", "test-event",
-                outcome, 0.5, 100.0, "2026-12-31");
+                outcome, 0.5, 0.4, 100.0, "2026-12-31");
     }
 }

@@ -70,6 +70,22 @@ farklı taraflarda olmaları da ortaklık sayılır ama `outcome` alanıyla ayr�
 Eşik: `min-common-holders` (varsayılan **3**, önceden 2'ydi — 2 kişilik "ortaklık"
 gürültülü/anlamsız sinyal üretiyordu, 3'e çıkarıldı) farklı cüzdan.
 
+**`avgPrice` alanının anlamı (canlı API'de doğrulandı, varsayım değil):** `/positions`
+cevabındaki `avgPrice`, o trader'ın **o pozisyondaki hâlihazırda elinde tuttuğu
+hisseler için** hisse-adedi-ağırlıklı ortalama alış fiyatı — yani `sum(hisse × fiyat) /
+sum(hisse)`. Birden fazla farklı fiyattan alım yapmış (satış yapmamış) üç gerçek top-20
+cüzdanı/marketi için `/activity?type=TRADE` ile tek tek alım (BUY) kayıtları çekilip elle
+ağırlıklı ortalama hesaplandı ve üçünde de API'nin `avgPrice` değeriyle (4 ondalık
+haneye kadar) birebir eşleşti. Kısmi satışı olan bir pozisyonda (`totalBought > size`)
+`avgPrice × size ≈ initialValue` de doğrulandı — yani satıştan sonra kalan pozisyon için
+de tutarlı kalıyor (weighted-average cost yöntemi). Bu alan **kişiye özel**: aynı
+markette aynı taraf (`outcome`) üzerinde olsalar bile iki farklı trader'ın `avgPrice`'ı
+o markete ne zaman/hangi fiyattan girdiklerine göre birbirinden tamamen farklı olabilir
+— `ConsensusMarket.HolderDetail.avgPrice` bu yüzden holder bazında (trader başına ayrı
+ayrı) tutuluyor, market için tek bir ortalama hesaplanmıyor. Biz bu alanı kendimiz
+hesaplamıyoruz, Polymarket'in döndürdüğü değeri olduğu gibi taşıyoruz
+(`PositionDto.avgPrice()` → `ActivePosition.avgPrice()` → `HolderDetail.avgPrice()`).
+
 ## Önceki Sürüm (referans / yeniden kullanılacak kod)
 
 `polymarket-common-bets` adında, düz katmanlı (hexagonal olmayan), H2 + Thymeleaf
@@ -188,16 +204,57 @@ kazananları sistematik olarak dışarıda bırakıp sadece kaybedenleri göster
    **kazanılan** bahisler (kaybeden pozisyonu claim etmenin bir anlamı yok,
    değeri $0). Bu, claim edilen pozisyonun zincir üstündeki tek izi; `outcome`
    ve claim zamanı güvenilir ama `usdcSize` **brüt ödeme**, net kâr değil
-   (maliyet bilgisi yok). Net kârı hesaplamak o markette yapılan tüm alım/satım
-   geçmişini toplamayı gerektirir — on-demand bir "detay göster" görünümü için
-   orantısız maliyetli bulundu, bilinçli olarak yapılmadı.
+   (maliyet bilgisi yoktu — bkz. aşağıdaki "Kazananlar için net kâr hesabı").
 
-Bu yüzden `ClosedPosition`'da kazanan holder'lar için `cashPnl`/`percentPnl`
-**bilerek `null`** bırakılıyor (yanlış bir sayı uydurmak yerine); frontend'de
-"—" olarak gösteriliyor, panelde bunun ne anlama geldiğini açıklayan bir not
-var. Kaybedenler için gösterilen rakamlar tam doğru. `PositionsPort`'a bu
-yüzden `fetchClosedPositions` (kaybedenler) ve `fetchRedeemedPositions`
-(kazananlar) olmak üzere iki ayrı metot eklendi.
+`PositionsPort`'a bu yüzden `fetchClosedPositions` (kaybedenler) ve
+`fetchRedeemedPositions` (kazananlar) olmak üzere iki ayrı metot eklendi.
+
+**Kazananlar için net kâr hesabı (sonradan eklendi — başta "orantısız maliyetli"
+diye yapılmamıştı, kullanıcı isteğiyle geri dönüldü):** Her REDEEM kaydı için o
+markette (`conditionId` + `outcome`) yapılmış **tüm** `TRADE` (BUY/SELL) geçmişi
+`/activity?type=TRADE&market=<conditionId>` ile ayrıca çekiliyor
+(`PolymarketPositionsAdapter.fetchTradeHistory`). Formül basit bir nakit-akışı
+özdeşliği:
+
+```
+netKâr = (tüm SELL işlemlerinin usdcSize toplamı + redeem ödemesi)
+         - (tüm BUY işlemlerinin usdcSize toplamı)
+percentPnl = netKâr / toplamMaliyet * 100
+```
+
+Bu, pay-pay ağırlıklı-ortalama-maliyet (WAC) yöntemiyle hesaplanan sonuçla
+matematiksel olarak birebir aynı çıkıyor (gerçek bir cüzdanın — opopv., "Taipei
+37°C or higher" marketi, 36 işlemlik alım/satım geçmişi — hem WAC replay hem bu
+basit toplam yöntemiyle çapraz doğrulandı, ikisi de $17.9865 net kâr verdi),
+o yüzden pay bazında kronolojik replay'e gerek yok. `avgPrice` alanının
+Polymarket'te gerçekten ağırlıklı-ortalama-maliyet mantığıyla çalıştığının
+canlı veriyle doğrulanmış olması (yukarıdaki `avgPrice` bulgusuna bakınız) bu
+iki yöntemin neden örtüştüğünün temelini oluşturuyor.
+
+Güvenlik kontrolü: BUY-SELL'den hesaplanan net hisse sayısı, redeem kaydındaki
+hisse sayısıyla (yaklaşık) eşleşmiyorsa (ör. `positions-limit` aşılıp eski
+işlemler eksik geldiyse) hesap **güvenilir sayılmıyor** ve `cashPnl`/`percentPnl`
+yine `null` bırakılıyor — yanlış bir sayı uydurmaktansa bilinmiyor demek tercih
+ediliyor (bkz. `PolymarketPositionsAdapter.toRedeemedClosedPosition`). N kazanan
+pozisyon için gereken N ek HTTP çağrısı, isteği yavaşlatmamak adına paralel
+çalıştırılıyor (`TRADE_HISTORY_CONCURRENCY = 8`). Bu artık gerçek bir sayı
+olduğu için frontend'de "—" yerine "N kazandı" için de "bilinen toplam kâr"
+gösteriliyor (kaybedenlerdeki "bilinen toplam zarar" ile simetrik).
+
+**Kapsam sınırı (canlı veride ölçüldü):** WEATHER kategorisinde 693 kazanan
+holder satırının 398'i (~%57) için net kâr hesaplanabildi, 295'i güvenlik
+kontrolüne takılıp `null` kaldı. Sebebi araştırıldı: bu null'lar neredeyse hep
+`negativeRisk: true` olan (birden çok karşılıklı-dışlayan kovaya bölünmüş,
+weather marketlerinde çok yaygın bir yapı) marketlerde çıkıyor. Bu tip
+marketlerde trader'lar **MERGE/CONVERT** işlemleriyle bir kovadaki hisseyi
+başka bir kovaya aktarabiliyor; bu, `/activity?type=TRADE` listesinde hiç
+görünmüyor (ne BUY ne SELL). Sonuç: BUY-SELL'den hesaplanan hisse sayısı
+redeem'deki gerçek hisse sayısından fazla çıkıyor (görülen bir örnekte 236.9
+hisse alınmış ama sadece 75.0 hisse redeem edilmiş — aradaki ~162 hisse başka
+bir kovaya MERGE/CONVERT edilmiş), güvenlik kontrolü bunu doğru şekilde
+yakalayıp `null` bırakıyor. Bu bir bug değil, kasıtlı bir tercih: MERGE/CONVERT
+zincirini de takip etmek kapsamı ciddi büyütürdü, o yüzden "hesaplanamayanlar
+için null" ilkesi (yanlış sayı yerine bilinmiyor demek) burada da korunuyor.
 
 **İkinci bulgu (gerçek veriyle UI testinde ortaya çıktı):** `ClosedPosition`/
 `HolderOutcome`'da sadece `outcome` (Yes/No/Up/Down/oyuncu adı -- hangi tarafı
@@ -213,9 +270,10 @@ isabetli çıkma eğiliminde), bu da eski `totalCashPnl` alanının çoğu zaman
 eklendi (kaynağa göre kesin: `fetchClosedPositions`→`false`,
 `fetchRedeemedPositions`→`true`). Market seviyesindeki tek `totalCashPnl`
 alanı **kaldırıldı** -- frontend artık holder listesinden "N kazandı · M
-kaybetti" + "bilinen toplam zarar" (sadece kaybedenlerin gerçek cashPnl'i
-toplanarak) türetiyor. Her holder satırında ayrı bir "Sonuç" (KAZANDI/KAYBETTİ)
-rozeti var, "Seçim" (outcome) nötr/bilgilendirici olarak ayrı gösteriliyor.
+kaybetti" + "bilinen toplam kâr"/"bilinen toplam zarar" (holder'ların gerçek
+cashPnl'i taraf bazında toplanarak) türetiyor. Her holder satırında ayrı bir
+"Sonuç" (KAZANDI/KAYBETTİ) rozeti var, "Seçim" (outcome) nötr/bilgilendirici
+olarak ayrı gösteriliyor.
 
 **Üçüncü bulgu (asıl kök neden -- kullanıcı üretimde "hepsi kazandı görünüyor"
 diye fark etti, ham veriyle doğrulandı):** Yukarıdaki iki düzeltmeden sonra bile

@@ -130,6 +130,7 @@ public class ConsensusService {
                         p.proxyWallet(),
                         p.outcome(),
                         p.curPrice(),
+                        p.avgPrice(),
                         p.currentValue(),
                         weightByWallet.getOrDefault(p.proxyWallet(), 0.0)))
                 .sorted(Comparator.comparingDouble(ConsensusMarket.HolderDetail::weight).reversed())

@@ -41,6 +41,9 @@ public class PositionSnapshotEntity {
     @Column(name = "cur_price")
     private Double curPrice;
 
+    @Column(name = "avg_price")
+    private Double avgPrice;
+
     @Column(name = "current_value")
     private Double currentValue;
 
@@ -56,7 +59,7 @@ public class PositionSnapshotEntity {
 
     public PositionSnapshotEntity(Category category, String proxyWallet, String userName, String conditionId,
                                    String marketTitle, String marketSlug, String eventSlug, String outcome,
-                                   Double curPrice, Double currentValue, String endDate, Instant syncedAt) {
+                                   Double curPrice, Double avgPrice, Double currentValue, String endDate, Instant syncedAt) {
         this.category = category;
         this.proxyWallet = proxyWallet;
         this.userName = userName;
@@ -66,6 +69,7 @@ public class PositionSnapshotEntity {
         this.eventSlug = eventSlug;
         this.outcome = outcome;
         this.curPrice = curPrice;
+        this.avgPrice = avgPrice;
         this.currentValue = currentValue;
         this.endDate = endDate;
         this.syncedAt = syncedAt;
@@ -109,6 +113,10 @@ public class PositionSnapshotEntity {
 
     public Double getCurPrice() {
         return curPrice;
+    }
+
+    public Double getAvgPrice() {
+        return avgPrice;
     }
 
     public Double getCurrentValue() {

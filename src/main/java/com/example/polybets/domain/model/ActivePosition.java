@@ -11,6 +11,7 @@ public record ActivePosition(
         String eventSlug,
         String outcome,
         Double curPrice,
+        Double avgPrice,
         Double currentValue,
         String endDate
 ) {

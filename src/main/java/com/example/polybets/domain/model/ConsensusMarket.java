@@ -33,6 +33,7 @@ public record ConsensusMarket(
             String proxyWallet,
             String outcome,
             Double curPrice,
+            Double avgPrice,
             Double currentValue,
             double weight
     ) {

@@ -9,6 +9,17 @@ function shortWallet(wallet) {
   return `${wallet.slice(0, 6)}…${wallet.slice(-4)}`
 }
 
+function formatUsd(value) {
+  if (value == null) return null
+  if (value > 0 && value < 1) return `$${value.toFixed(2)}`
+  return `$${value.toLocaleString('en-US', { maximumFractionDigits: 0 })}`
+}
+
+function formatSharePrice(value) {
+  if (value == null) return null
+  return `$${value.toFixed(2)}`
+}
+
 export default function ConsensusMarketCard({ market }) {
   const plainPercent = market.cohortSize === 0 ? 0 : (market.holderCount * 100) / market.cohortSize
   const eventUrl = market.eventSlug ? `https://polymarket.com/event/${market.eventSlug}` : null
@@ -71,12 +82,21 @@ export default function ConsensusMarketCard({ market }) {
           <div
             key={h.proxyWallet}
             className="flex items-center gap-2 rounded-full bg-ink-700/70 border border-ink-600 pl-1.5 pr-3 py-1"
-            title={`${shortWallet(h.proxyWallet)} · ağırlık ${h.weight.toFixed(2)}x`}
+            title={`${shortWallet(h.proxyWallet)} · ağırlık ${h.weight.toFixed(2)}x${h.currentValue != null ? ` · pozisyon değeri ${formatUsd(h.currentValue)}` : ''}${h.avgPrice != null ? ` · ort. alış fiyatı ${formatSharePrice(h.avgPrice)}/hisse` : ''}`}
           >
             <span className="flex items-center justify-center w-6 h-6 rounded-full bg-amber-500/20 text-amber-400 text-[10px] font-mono font-bold">
               {initials(h.userName, h.proxyWallet)}
             </span>
             <span className="text-xs text-ash-300 font-medium">{h.userName || shortWallet(h.proxyWallet)}</span>
+            {(h.currentValue != null || h.avgPrice != null) && (
+              <span className="text-[10px] font-mono font-semibold text-ash-400 whitespace-nowrap">
+                {h.currentValue != null && formatUsd(h.currentValue)}
+                {h.currentValue != null && h.avgPrice != null && ' · '}
+                {h.avgPrice != null && (
+                  <span className="text-ash-500">ort. {formatSharePrice(h.avgPrice)}</span>
+                )}
+              </span>
+            )}
             {h.outcome && (
               <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ${
                 h.outcome.toLowerCase() === 'yes'
