@@ -54,10 +54,10 @@ class ConsensusRepositoryAdapterIT {
 
         ActivePosition position1 = new ActivePosition(
                 "0xAAA", "cond-1", "NY Rain", "ny-rain", "ny-weather-event",
-                "Yes", 0.65, 0.55, 1300.0, "2026-12-31");
+                "Yes", 0.65, 0.55, 1300.0, 715.0, "2026-12-31");
         ActivePosition position2 = new ActivePosition(
                 "0xBBB", "cond-1", "NY Rain", "ny-rain", "ny-weather-event",
-                "No", 0.35, 0.30, 400.0, "2026-12-31");
+                "No", 0.35, 0.30, 400.0, 120.0, "2026-12-31");
 
         Instant syncedAt = Instant.now();
         repositoryAdapter.saveSnapshot(Category.WEATHER, List.of(trader1, trader2),
@@ -83,7 +83,7 @@ class ConsensusRepositoryAdapterIT {
         Trader trader = new Trader("0xCCC", "someTrader", 1, 1000.0, 10000.0);
         ActivePosition position = new ActivePosition(
                 "0xCCC", "cond-old", "Old Market", "old-market", "old-event",
-                "Yes", 0.5, 0.45, 100.0, "2026-01-01");
+                "Yes", 0.5, 0.45, 100.0, 45.0, "2026-01-01");
 
         repositoryAdapter.saveSnapshot(Category.SPORTS, List.of(trader), List.of(position), Instant.now());
 

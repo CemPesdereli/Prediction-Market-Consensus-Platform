@@ -37,6 +37,7 @@ public record ClosedConsensusMarket(
             boolean won,
             Double cashPnl,
             Double percentPnl,
+            Double spentValue,
             double weight
     ) {
     }

@@ -189,11 +189,13 @@ public class PolymarketPositionsAdapter implements PositionsPort {
 
         Double cashPnl = null;
         Double percentPnl = null;
+        Double spentValue = null;
         if (reconstructionReliable) {
             double redeemPayout = redeem.usdcSize() == null ? 0.0 : redeem.usdcSize();
             double totalProceeds = totalSellProceeds + redeemPayout;
             cashPnl = totalProceeds - totalCost;
             percentPnl = (cashPnl / totalCost) * 100.0;
+            spentValue = totalCost;
         }
 
         return new ClosedPosition(
@@ -206,6 +208,7 @@ public class PolymarketPositionsAdapter implements PositionsPort {
                 true,
                 cashPnl,
                 percentPnl,
+                spentValue,
                 Instant.ofEpochSecond(redeem.timestamp()).toString());
     }
 
@@ -225,6 +228,7 @@ public class PolymarketPositionsAdapter implements PositionsPort {
                     dto.curPrice(),
                     dto.avgPrice(),
                     dto.currentValue(),
+                    dto.initialValue(),
                     dto.endDate()));
         }
         return positions;
@@ -249,6 +253,7 @@ public class PolymarketPositionsAdapter implements PositionsPort {
                     false,
                     dto.cashPnl(),
                     dto.percentPnl(),
+                    dto.initialValue(),
                     dto.endDate()));
         }
         return positions;

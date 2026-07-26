@@ -67,6 +67,7 @@ class PolymarketPositionsAdapterTest {
         // maliyet 5.0 (10 hisse @ 0.5), redeem odemesi 10.0 -> net kar 5.0, %100 getiri
         assertThat(p.cashPnl()).isCloseTo(5.0, within(0.001));
         assertThat(p.percentPnl()).isCloseTo(100.0, within(0.001));
+        assertThat(p.spentValue()).isCloseTo(5.0, within(0.001));
     }
 
     @Test
@@ -97,6 +98,7 @@ class PolymarketPositionsAdapterTest {
         // -> net kar 7.0, maliyete gore %70 getiri
         assertThat(p.cashPnl()).isCloseTo(7.0, within(0.001));
         assertThat(p.percentPnl()).isCloseTo(70.0, within(0.001));
+        assertThat(p.spentValue()).isCloseTo(10.0, within(0.001));
     }
 
     @Test
@@ -125,6 +127,7 @@ class PolymarketPositionsAdapterTest {
         assertThat(p.won()).isTrue();
         assertThat(p.cashPnl()).isNull();
         assertThat(p.percentPnl()).isNull();
+        assertThat(p.spentValue()).isNull();
     }
 
     private void stubRedeem(String body) {

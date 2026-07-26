@@ -162,6 +162,7 @@ public class ClosedConsensusService {
                         p.won(),
                         p.cashPnl(),
                         p.percentPnl(),
+                        p.spentValue(),
                         weightByWallet.getOrDefault(p.proxyWallet(), 0.0)))
                 // Once kazananlar (won=true), sonra kaybedenler kayip buyuklugune gore
                 .sorted(Comparator

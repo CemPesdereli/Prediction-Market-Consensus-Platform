@@ -91,6 +91,7 @@ class ClosedConsensusServiceTest {
         assertThat(holders.get(0).outcome()).isEqualTo("Yes");
         assertThat(holders.get(0).cashPnl()).isCloseTo(-5.0, within(0.001));
         assertThat(holders.get(0).percentPnl()).isCloseTo(-2.5, within(0.001));
+        assertThat(holders.get(0).spentValue()).isCloseTo(5.0, within(0.001));
 
         ClosedConsensusMarket.HolderOutcome holderB = holders.stream()
                 .filter(h -> h.proxyWallet().equals("0xB")).findFirst().orElseThrow();
@@ -191,12 +192,14 @@ class ClosedConsensusServiceTest {
 
     private ClosedPosition lost(
             String wallet, String conditionId, String outcome, Double cashPnl, Double percentPnl, String endDate) {
+        // Kaybedenlerde currentValue genelde 0'a dustugu icin spentValue = -cashPnl
+        // (API'nin initialValue alani gercek veride de bu sekilde davraniyor, bkz. CLAUDE.md).
         return new ClosedPosition(wallet, conditionId, "Test Market", "test-market", "test-event",
-                outcome, false, cashPnl, percentPnl, endDate);
+                outcome, false, cashPnl, percentPnl, -cashPnl, endDate);
     }
 
     private ClosedPosition won(String wallet, String conditionId, String outcome, String endDate) {
         return new ClosedPosition(wallet, conditionId, "Test Market", "test-market", "test-event",
-                outcome, true, null, null, endDate);
+                outcome, true, null, null, null, endDate);
     }
 }

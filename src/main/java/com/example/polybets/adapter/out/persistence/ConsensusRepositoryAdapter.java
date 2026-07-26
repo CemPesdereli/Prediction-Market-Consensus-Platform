@@ -48,7 +48,7 @@ public class ConsensusRepositoryAdapter implements ConsensusRepositoryPort {
                 .map(p -> new PositionSnapshotEntity(
                         category, p.proxyWallet(), userNameFor(traders, p.proxyWallet()), p.conditionId(),
                         p.marketTitle(), p.marketSlug(), p.eventSlug(), p.outcome(),
-                        p.curPrice(), p.avgPrice(), p.currentValue(), p.endDate(), syncedAt))
+                        p.curPrice(), p.avgPrice(), p.currentValue(), p.initialValue(), p.endDate(), syncedAt))
                 .collect(Collectors.toList());
         positionRepository.saveAll(positionEntities);
     }
@@ -65,7 +65,8 @@ public class ConsensusRepositoryAdapter implements ConsensusRepositoryPort {
         return positionRepository.findByCategory(category).stream()
                 .map(e -> new ActivePosition(
                         e.getProxyWallet(), e.getConditionId(), e.getMarketTitle(), e.getMarketSlug(),
-                        e.getEventSlug(), e.getOutcome(), e.getCurPrice(), e.getAvgPrice(), e.getCurrentValue(), e.getEndDate()))
+                        e.getEventSlug(), e.getOutcome(), e.getCurPrice(), e.getAvgPrice(), e.getCurrentValue(),
+                        e.getInitialValue(), e.getEndDate()))
                 .collect(Collectors.toList());
     }
 

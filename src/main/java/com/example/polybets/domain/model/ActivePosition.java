@@ -13,6 +13,7 @@ public record ActivePosition(
         Double curPrice,
         Double avgPrice,
         Double currentValue,
+        Double initialValue,
         String endDate
 ) {
 }

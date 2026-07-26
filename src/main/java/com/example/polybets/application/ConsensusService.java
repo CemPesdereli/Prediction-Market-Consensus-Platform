@@ -124,6 +124,32 @@ public class ConsensusService {
                 ? null
                 : (yesWeight / (yesWeight + noWeight)) * 100.0;
 
+        double yesPriceSum = 0.0;
+        int yesPriceCount = 0;
+        double noPriceSum = 0.0;
+        int noPriceCount = 0;
+        for (ActivePosition p : dedupedByWallet.values()) {
+            if (p.curPrice() == null || p.outcome() == null) {
+                continue;
+            }
+            if (p.outcome().equalsIgnoreCase("yes")) {
+                yesPriceSum += p.curPrice();
+                yesPriceCount++;
+            } else if (p.outcome().equalsIgnoreCase("no")) {
+                noPriceSum += p.curPrice();
+                noPriceCount++;
+            }
+        }
+        // Ikili (Yes/No) marketlerde iki tarafin fiyati toplami ~1.0 olur; bir taraf
+        // icin holder yoksa (herkes ayni tarafi tutuyorsa) diger tarafin fiyatindan
+        // tumleyen (1 - fiyat) olarak turetiliyor.
+        Double yesPrice = yesPriceCount > 0
+                ? yesPriceSum / yesPriceCount
+                : (noPriceCount > 0 ? 1.0 - (noPriceSum / noPriceCount) : null);
+        Double noPrice = noPriceCount > 0
+                ? noPriceSum / noPriceCount
+                : (yesPriceCount > 0 ? 1.0 - (yesPriceSum / yesPriceCount) : null);
+
         List<ConsensusMarket.HolderDetail> holders = dedupedByWallet.values().stream()
                 .map(p -> new ConsensusMarket.HolderDetail(
                         userNameByWallet.get(p.proxyWallet()),
@@ -132,6 +158,7 @@ public class ConsensusService {
                         p.curPrice(),
                         p.avgPrice(),
                         p.currentValue(),
+                        p.initialValue(),
                         weightByWallet.getOrDefault(p.proxyWallet(), 0.0)))
                 .sorted(Comparator.comparingDouble(ConsensusMarket.HolderDetail::weight).reversed())
                 .collect(Collectors.toList());
@@ -159,6 +186,8 @@ public class ConsensusService {
                 minPossiblePercent,
                 maxPossiblePercent,
                 sentimentYesPercent,
+                yesPrice,
+                noPrice,
                 holders);
     }
 

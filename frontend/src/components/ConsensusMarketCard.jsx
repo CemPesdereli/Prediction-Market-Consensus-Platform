@@ -77,23 +77,46 @@ export default function ConsensusMarketCard({ market }) {
         </div>
       )}
 
+      {(market.yesPrice != null || market.noPrice != null) && (
+        <div className="mt-2 flex items-center gap-2 text-xs">
+          <span className="text-ash-500">Anlık hisse fiyatı:</span>
+          {market.yesPrice != null && (
+            <span className="font-mono font-semibold text-signal-yes">
+              YES {formatSharePrice(market.yesPrice)}
+            </span>
+          )}
+          {market.yesPrice != null && market.noPrice != null && (
+            <span className="text-ash-700">/</span>
+          )}
+          {market.noPrice != null && (
+            <span className="font-mono font-semibold text-signal-no">
+              NO {formatSharePrice(market.noPrice)}
+            </span>
+          )}
+        </div>
+      )}
+
       <div className="mt-4 flex flex-wrap gap-2">
         {market.holders.map((h) => (
           <div
             key={h.proxyWallet}
             className="flex items-center gap-2 rounded-full bg-ink-700/70 border border-ink-600 pl-1.5 pr-3 py-1"
-            title={`${shortWallet(h.proxyWallet)} · ağırlık ${h.weight.toFixed(2)}x${h.currentValue != null ? ` · pozisyon değeri ${formatUsd(h.currentValue)}` : ''}${h.avgPrice != null ? ` · ort. alış fiyatı ${formatSharePrice(h.avgPrice)}/hisse` : ''}`}
+            title={`${shortWallet(h.proxyWallet)} · ağırlık ${h.weight.toFixed(2)}x${h.currentValue != null ? ` · pozisyon değeri ${formatUsd(h.currentValue)}` : ''}${h.avgPrice != null ? ` · ort. alış fiyatı ${formatSharePrice(h.avgPrice)}/hisse` : ''}${h.spentValue != null ? ` · harcanan ${formatUsd(h.spentValue)}` : ''}`}
           >
             <span className="flex items-center justify-center w-6 h-6 rounded-full bg-amber-500/20 text-amber-400 text-[10px] font-mono font-bold">
               {initials(h.userName, h.proxyWallet)}
             </span>
             <span className="text-xs text-ash-300 font-medium">{h.userName || shortWallet(h.proxyWallet)}</span>
-            {(h.currentValue != null || h.avgPrice != null) && (
+            {(h.currentValue != null || h.avgPrice != null || h.spentValue != null) && (
               <span className="text-[10px] font-mono font-semibold text-ash-400 whitespace-nowrap">
                 {h.currentValue != null && formatUsd(h.currentValue)}
                 {h.currentValue != null && h.avgPrice != null && ' · '}
                 {h.avgPrice != null && (
                   <span className="text-ash-500">ort. {formatSharePrice(h.avgPrice)}</span>
+                )}
+                {(h.currentValue != null || h.avgPrice != null) && h.spentValue != null && ' · '}
+                {h.spentValue != null && (
+                  <span className="text-ash-500">harcanan {formatUsd(h.spentValue)}</span>
                 )}
               </span>
             )}

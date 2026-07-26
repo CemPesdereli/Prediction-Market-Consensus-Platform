@@ -119,8 +119,43 @@ class ConsensusServiceTest {
                 .isLessThanOrEqualTo(market.maxPossiblePercent());
     }
 
+    @Test
+    void yesNoFiyatlariIkiTarafliMarkettteHolderlardanOkunmali() {
+        Trader a = new Trader("0xA", "traderA", 1, 500, 1000);
+        Trader b = new Trader("0xB", "traderB", 2, 500, 1000);
+
+        ActivePosition yesA = position("0xA", "market-1", "Yes", 0.73);
+        ActivePosition noB = position("0xB", "market-1", "No", 0.27);
+
+        List<ConsensusMarket> result = service.calculate(List.of(a, b), List.of(yesA, noB), 2);
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).yesPrice()).isCloseTo(0.73, within(0.0001));
+        assertThat(result.get(0).noPrice()).isCloseTo(0.27, within(0.0001));
+    }
+
+    @Test
+    void tekTarafliMarkettteDigerFiyatTumleyenOlarakTurenmeli() {
+        Trader a = new Trader("0xA", "traderA", 1, 500, 1000);
+        Trader b = new Trader("0xB", "traderB", 2, 500, 1000);
+
+        // Iki trader da Yes tarafinda -> No fiyati elimizde yok, 1 - yesPrice olarak turetilmeli
+        ActivePosition yesA = position("0xA", "market-1", "Yes", 0.8);
+        ActivePosition yesB = position("0xB", "market-1", "Yes", 0.8);
+
+        List<ConsensusMarket> result = service.calculate(List.of(a, b), List.of(yesA, yesB), 2);
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).yesPrice()).isCloseTo(0.8, within(0.0001));
+        assertThat(result.get(0).noPrice()).isCloseTo(0.2, within(0.0001));
+    }
+
     private ActivePosition position(String wallet, String conditionId, String outcome) {
+        return position(wallet, conditionId, outcome, 0.5);
+    }
+
+    private ActivePosition position(String wallet, String conditionId, String outcome, double curPrice) {
         return new ActivePosition(wallet, conditionId, "Test Market", "test-market", "test-event",
-                outcome, 0.5, 0.4, 100.0, "2026-12-31");
+                outcome, curPrice, 0.4, 100.0, 40.0, "2026-12-31");
     }
 }

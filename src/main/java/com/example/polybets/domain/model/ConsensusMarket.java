@@ -19,6 +19,8 @@ public record ConsensusMarket(
         double minPossiblePercent,
         double maxPossiblePercent,
         Double sentimentYesPercent,
+        Double yesPrice,
+        Double noPrice,
         List<HolderDetail> holders
 ) {
     /**
@@ -35,6 +37,7 @@ public record ConsensusMarket(
             Double curPrice,
             Double avgPrice,
             Double currentValue,
+            Double spentValue,
             double weight
     ) {
     }

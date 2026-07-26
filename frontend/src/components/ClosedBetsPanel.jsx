@@ -17,6 +17,11 @@ function formatPnl(value, suffix) {
   return `${sign}${value.toFixed(suffix === '%' ? 1 : 0)}${suffix}`
 }
 
+function formatUsd(value) {
+  if (value == null) return '—'
+  return `$${value.toLocaleString('en-US', { maximumFractionDigits: 0 })}`
+}
+
 function marketSummary(holders) {
   const winners = holders.filter((h) => h.won)
   const losers = holders.filter((h) => !h.won)
@@ -98,6 +103,7 @@ export default function ClosedBetsPanel({ markets, loading, error, windowDays })
                       <th className="pb-2 font-medium text-right">Ağırlık</th>
                       <th className="pb-2 font-medium text-right">ROI</th>
                       <th className="pb-2 font-medium text-right">Kâr/Zarar</th>
+                      <th className="pb-2 font-medium text-right">Harcanan</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -123,6 +129,9 @@ export default function ClosedBetsPanel({ markets, loading, error, windowDays })
                         </td>
                         <td className={`py-2 text-right font-mono tabular-nums ${pnlClass(h.cashPnl)}`}>
                           {formatPnl(h.cashPnl, '$')}
+                        </td>
+                        <td className="py-2 text-right font-mono tabular-nums text-ash-400">
+                          {formatUsd(h.spentValue)}
                         </td>
                       </tr>
                     ))}
