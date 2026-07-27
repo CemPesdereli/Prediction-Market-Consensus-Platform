@@ -1,6 +1,12 @@
 import { useEffect, useState } from 'react'
-import { Outlet } from 'react-router-dom'
+import { Outlet, NavLink } from 'react-router-dom'
 import { fetchCategories } from './api.js'
+
+function navLinkClass({ isActive }) {
+  return `text-sm font-medium rounded-lg px-3 py-2 transition-colors ${
+    isActive ? 'bg-ink-800 text-amber-400' : 'text-ash-500 hover:text-ash-100'
+  }`
+}
 
 export default function Layout() {
   const [categories, setCategories] = useState([])
@@ -26,16 +32,23 @@ export default function Layout() {
             </h1>
           </div>
 
-          <select
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            className="bg-ink-800 border border-ink-600 text-ash-100 text-sm rounded-lg px-3 py-2 font-mono
-                       focus:outline-none focus:ring-2 focus:ring-amber-500/60"
-          >
-            {categories.map((c) => (
-              <option key={c} value={c}>{c}</option>
-            ))}
-          </select>
+          <div className="flex items-center gap-3 flex-wrap">
+            <nav className="flex items-center gap-1">
+              <NavLink to="/" end className={navLinkClass}>Aktif Bahisler</NavLink>
+              <NavLink to="/watched-bets" className={navLinkClass}>Bahislerim</NavLink>
+            </nav>
+
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className="bg-ink-800 border border-ink-600 text-ash-100 text-sm rounded-lg px-3 py-2 font-mono
+                         focus:outline-none focus:ring-2 focus:ring-amber-500/60"
+            >
+              {categories.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+          </div>
         </div>
       </header>
 

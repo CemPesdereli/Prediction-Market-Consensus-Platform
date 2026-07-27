@@ -299,6 +299,72 @@ bare-date'i de parse eder. `ClosedConsensusServiceTest`'e bu spesifik regresyonu
 (bare-date `endDate`'li kaybedenlerin pencereden geçmesi gerektiğini) doğrulayan
 bir test eklendi.
 
+## Manuel Fiyat Alarmı Özelliği (yeni karar)
+
+Kullanıcının (ben) kendi girdiği bahisleri (Polymarket'te kendi cüzdanımla
+aldığım pozisyonlar) manuel olarak sisteme kaydedip hedef fiyata ulaşınca
+bildirim alabilmesi için eklendi. Top-20 consensus özelliğinden bağımsız bir
+alan — izlenen market top-20 kohortunun ortak bahsi olmak zorunda değil,
+herhangi bir Polymarket marketi olabilir.
+
+- **Veri girişi manuel** (form): market URL'si/slug'ı, YES/NO, giriş fiyatı
+  (cent), hedef fiyat (cent). Cüzdan bağlamıyoruz — kullanıcı zaten hangi
+  fiyattan aldığını biliyor, otomatik senkronize etmeye gerek yok.
+- **Yön ayrı bir alan değil**: `targetPrice > entryPrice` ise "kâr al" (fiyat
+  hedefe **çıkınca** haber ver), `targetPrice < entryPrice` ise "zarar kes"
+  (fiyat hedefe **inince** haber ver). `WatchedBet.isTargetReached()` bunu tek
+  bir karşılaştırmayla hallediyor.
+- **Bildirim kanalı: Telegram bot** (kullanıcı tercihi). Roadmap'teki Faz 3
+  "Telegram bot" planını öne çekmiş oluyor. `telegram.bot-token`/`chat-id`
+  boşsa (`.env`/ortam değişkeni set edilmemişse) `TelegramNotificationAdapter`
+  alarmı sadece loglar, sessizce devre dışı kalır — bot kurulmadan da
+  izleme/tetikleme mantığının geri kalanı çalışır durumda kalsın diye.
+- **Kontrol sıklığı 15 dakikada bir** (`polymarket.watched-bet.check.cron`),
+  kullanıcı tercihi — alarm hassasiyeti için yeterli, Polymarket API'sini
+  yormuyor.
+- **Anlık fiyat kaynağı: Gamma API + CLOB API** (`GammaMarketPriceAdapter`),
+  `PositionsPort`'un aksine bir cüzdan gerektirmiyor — sadece `slug` ya da
+  `condition_ids` ile sorgulanabiliyor, bu yüzden izlenen market top-20
+  kohortunda olmasa bile çalışıyor. Market bilgisi (conditionId, title,
+  eventSlug, `clobTokenIds`) Gamma'dan (`https://gamma-api.polymarket.com/markets`)
+  geliyor; `outcomes`/`outcomePrices`/`clobTokenIds` alanları düz JSON dizisi
+  değil, **JSON-encode edilmiş string** olarak geliyor (`"outcomes":
+  "[\"Yes\", \"No\"]"`) — bilinen bir Gamma API tuhaflığı, adapter'da ayrıca
+  parse ediliyor.
+
+  **ÖNEMLİ bulgu (canlı veride doğrulandı, ilk implementasyondaki varsayım
+  yanlış çıktı):** İlk sürüm anlık fiyatı doğrudan Gamma'nın `outcomePrices`
+  alanından okuyordu. Gerçek bir kullanıcı raporuyla ortaya çıktı: weather
+  kategorisindeki bir bucket marketi (`highest-temperature-in-london-on-
+  july-27-2026-26c`, `negRisk: true`) için uygulama "Yes" fiyatını 39¢
+  gösterdi, ama Polymarket sitesinde gerçek fiyat ~64¢'ti. Canlı curl ile
+  doğrulandı: aynı market için Gamma `outcomePrices` `["0.395", "0.605"]`
+  derken, aynı anda CLOB `GET https://clob.polymarket.com/midpoint?token_id=
+  <clobTokenIds[i]>` `{"mid": "0.575"}` (birkaç saniye sonra `0.585`)
+  veriyordu — yani Gamma'nın `outcomePrices`'ı bu tip **negRisk/gruplu bucket**
+  marketlerde ciddi şekilde bayat kalabiliyor (muhtemelen neg-risk adapter
+  üzerinden fiyatlanan bu marketler için Gamma'nın önbelleklediği alan gerçek
+  zamanlı güncellenmiyor). Sıradan (negRisk olmayan) ikili marketlerde bu
+  sapma gözlenmedi.
+
+  Çözüm: `GammaMarketPriceAdapter` artık gerçek fiyatı önce CLOB
+  `/midpoint`'ten (`clobTokenIds` ile outcome'a karşılık gelen token id
+  üzerinden) çekiyor; CLOB çağrısı başarısız olursa (ör. orderbook kapalı/
+  hata) Gamma'nın `outcomePrices`'ına geri dönüyor (fallback, `GammaMarketPriceAdapterTest`
+  içinde ayrı test edildi). `polymarket.clob-api-base-url` config'i eklendi.
+- Yeni portlar: `WatchedBetRepositoryPort` (Postgres/JPA), `MarketPricePort`
+  (Gamma adapter), `NotificationPort` (Telegram adapter) — hepsi mevcut
+  hexagonal sınırlara uyuyor, `WatchedBetService` sadece portlara bağımlı.
+  `watched_bet` tablosu `V4__create_watched_bet.sql` ile eklendi.
+- REST: `POST/GET /api/watched-bets`, `DELETE /api/watched-bets/{id}`.
+  Frontend'de yeni `Bahislerim` sayfası (`WatchedBetsPage.jsx`) — form +
+  liste (İZLENİYOR/TETİKLENDİ/İPTAL rozetli).
+- **Kurulum notu**: gerçek bildirim almak için `TELEGRAM_BOT_TOKEN` ve
+  `TELEGRAM_CHAT_ID` ortam değişkenlerinin set edilmesi gerekiyor (BotFather
+  ile bot oluşturup token alınır, bota mesaj atıp `getUpdates` ile kendi
+  `chat_id`'ni öğrenirsin). Henüz yapılmadıysa alarm tetiklenince sadece log'a
+  düşer.
+
 ## Frontend Kararı (yeni karar — önceki Thymeleaf planından değişti)
 
 Ayrı bir **React SPA** (Vite + Tailwind CSS) yazılacak, backend'in REST API'sini

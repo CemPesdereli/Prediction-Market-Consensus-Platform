@@ -23,3 +23,28 @@ export async function triggerSync(category) {
   if (!res.ok) throw new Error('Senkronizasyon tetiklenemedi')
   return res.text()
 }
+
+export async function fetchWatchedBets() {
+  const res = await fetch(`${BASE}/watched-bets`)
+  if (!res.ok) throw new Error('Alarmlar alınamadı')
+  return res.json()
+}
+
+export async function createWatchedBet({ marketSlug, outcome, entryPrice, targetPrice }) {
+  const res = await fetch(`${BASE}/watched-bets`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ marketSlug, outcome, entryPrice, targetPrice }),
+  })
+  if (!res.ok) {
+    const message = await res.text().catch(() => null)
+    throw new Error(message || 'Alarm oluşturulamadı')
+  }
+  return res.json()
+}
+
+export async function cancelWatchedBet(id) {
+  const res = await fetch(`${BASE}/watched-bets/${id}`, { method: 'DELETE' })
+  if (!res.ok) throw new Error('Alarm iptal edilemedi')
+  return res.json()
+}
